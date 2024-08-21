@@ -42,9 +42,13 @@ async function run() {
       res.send(result);
 
     });
-    
-    // carts coleection 
-    app.post('carts' ,async(req,res)=>{
+    // carts length get 
+    app.get('/carts',async(req,res)=>{
+      const result = await cartCollection.find().toArray();
+      res.send(result);
+    })
+    // carts coleection post 
+    app.post('/carts' ,async(req,res)=>{
       const cartItem=req.body;
       const result =await cartCollection.insertOne(cartItem);
       res.send(result);
