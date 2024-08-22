@@ -42,9 +42,12 @@ async function run() {
       res.send(result);
 
     });
-    // carts length get 
+    // users carts add inbox  length get 
+    // cart to update the cart items count
     app.get('/carts',async(req,res)=>{
-      const result = await cartCollection.find().toArray();
+      const email=req.query.email;
+      const query={email:email};
+      const result = await cartCollection.find(query).toArray();
       res.send(result);
     })
     // carts coleection post 
