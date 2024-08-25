@@ -25,7 +25,7 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-
+    const userCollection= client.db("HomeCleanDb").collection("users");
     const serviceCollection= client.db("HomeCleanDb").collection("service");
     const ratingCollection= client.db("HomeCleanDb").collection("rating");
     const cartCollection= client.db("HomeCleanDb").collection("carts");
@@ -65,6 +65,12 @@ app.delete('/carts/:id',async(req,res)=>{
   const result = await cartCollection.deleteOne(query);
   res.send(result);
 
+});
+// users register created database
+app.post('/users',async (req,res)=>{
+  const user=req.body;
+  const result= await userCollection.insertOne(user);
+  res.send(result);
 })
 
 
