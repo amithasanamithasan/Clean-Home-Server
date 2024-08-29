@@ -69,6 +69,11 @@ app.delete('/carts/:id',async(req,res)=>{
 // users register created database
 app.post('/users',async (req,res)=>{
   const user=req.body;
+  const  query ={email: user.email}
+  const existinguser= await userCollection.findOne(query);
+  if(existinguser){
+    return res.send({massage:'user already exists',insertedId:null})
+  }
   const result= await userCollection.insertOne(user);
   res.send(result);
 })
