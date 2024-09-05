@@ -43,6 +43,8 @@ async function run() {
       res.send(result);
 
     });
+  
+  
     
     // users carts add inbox  length get 
     // cart to update the cart items count
@@ -78,9 +80,37 @@ app.post('/users',async (req,res)=>{
   const result= await userCollection.insertOne(user);
   res.send(result);
 })
-// Admin dashboard  signin all users show in the table 
-app.get('/users',async (req,res)=>{
 
+  // jwt web token access  related API
+    // token ta kotha thika call hobe ta bujte hobe tr mane 
+    // user ji jagie login, signin, social login, takbe sikhane call korbo 
+    app.post('/jwt', async(req,res)=>{
+      const user=req.body;
+      const token=jwt.sign(user,process.env.SECRET_KEY,{
+        expiresIn: '1h'});
+        res.send({token});
+    })
+
+
+  // middelwares verify token 
+    // mideelwares jodi banietachie tahole 3ta pramiters thake
+    const verifyToken  = (req,res,next) =>{
+      console.log('inside veryfey token',req.headers);
+    // user jodi access token na thake tahole take same agite dibo na
+      if(!req.headers.authorization){
+ return res.status(401).send({message:'forbidden access'});
+      }
+      const token=req.headers.authorization.split(' ')[1];
+      // console.log('1 index token:',token);
+     
+      next();
+    }
+
+
+// Admin dashboard  signin all users show in the table 
+app.get('/users', verifyToken,async (req,res)=>{
+  // check jwt token access here but amra middelware e korbo
+  // console.log(req.headers);
   const result= await userCollection.find().toArray();
   res.send(result);
 
