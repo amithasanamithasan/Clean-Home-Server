@@ -79,7 +79,7 @@ app.post('/users',async (req,res)=>{
   }
   const result= await userCollection.insertOne(user);
   res.send(result);
-})
+});
 
   // jwt web token access  related API
     // token ta kotha thika call hobe ta bujte hobe tr mane 
@@ -95,15 +95,23 @@ app.post('/users',async (req,res)=>{
   // middelwares verify token 
     // mideelwares jodi banietachie tahole 3ta pramiters thake
     const verifyToken  = (req,res,next) =>{
-      console.log('inside veryfey token',req.headers);
+      console.log('inside veryfey token',req.headers.authorization);
     // user jodi access token na thake tahole take same agite dibo na
       if(!req.headers.authorization){
  return res.status(401).send({message:'forbidden access'});
       }
       const token=req.headers.authorization.split(' ')[1];
       // console.log('1 index token:',token);
+      jwt.verify(token, process.env.SECRET_KEY, (err, decoded)=> {
+        // console.log(decoded.foo) 
+        if(err){
+          return res.status(401).send({message:'forbidden access'})
+
+        }
+        req.decoded=decoded;
+        next();
+      });
      
-      next();
     }
 
 
@@ -115,6 +123,27 @@ app.get('/users', verifyToken,async (req,res)=>{
   res.send(result);
 
 });
+
+// admin or user check releted api
+app.get('/users/admin/:email',verifyToken ,async(req,res)=>{
+const email =req.params.email;
+
+if(email !=req.decoded.email){
+  return res.status(403).send({message:'unauthorized access'})
+
+}
+const query ={email: email};
+const user =await userCollection.findOne(query);
+let admin =false;
+if(user){
+  admin =user.role === 'admin';
+}
+res.send({admin});
+
+});
+
+
+
 // admin users deleted api 
 app.delete('/users/:id' ,async (req,res)=>{
 const id=req.params.id;
