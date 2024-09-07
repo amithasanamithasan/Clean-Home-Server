@@ -98,14 +98,14 @@ app.post('/users',async (req,res)=>{
       console.log('inside veryfey token',req.headers.authorization);
     // user jodi access token na thake tahole take same agite dibo na
       if(!req.headers.authorization){
- return res.status(401).send({message:'forbidden access'});
+ return res.status(401).send({message:'unauthorized  access'});
       }
       const token=req.headers.authorization.split(' ')[1];
       // console.log('1 index token:',token);
       jwt.verify(token, process.env.SECRET_KEY, (err, decoded)=> {
         // console.log(decoded.foo) 
         if(err){
-          return res.status(401).send({message:'forbidden access'})
+          return res.status(401).send({message:'unauthorized access'})
 
         }
         req.decoded=decoded;
@@ -114,9 +114,24 @@ app.post('/users',async (req,res)=>{
      
     }
 
+    // use verify admin after verify Token
+const verifyAdmin= async (req,res,next)=>{
+
+  const email=req.decoded.email;
+  const query={email:email};
+  const user= await userCollection.findOne(query);
+  const isAdmin = user?.role === 'admin';
+  
+  if(!isAdmin){
+    return res.status(403).send({message:'forbidden access'});
+
+  }
+  next();
+
+}
 
 // Admin dashboard  signin all users show in the table 
-app.get('/users', verifyToken,async (req,res)=>{
+app.get('/users', verifyToken, verifyAdmin,async (req,res)=>{
   // check jwt token access here but amra middelware e korbo
   // console.log(req.headers);
   const result= await userCollection.find().toArray();
@@ -129,7 +144,7 @@ app.get('/users/admin/:email',verifyToken ,async(req,res)=>{
 const email =req.params.email;
 
 if(email !=req.decoded.email){
-  return res.status(403).send({message:'unauthorized access'})
+  return res.status(403).send({message:'forbidden  access'})
 
 }
 const query ={email: email};
@@ -145,7 +160,7 @@ res.send({admin});
 
 
 // admin users deleted api 
-app.delete('/users/:id' ,async (req,res)=>{
+app.delete('/users/:id', verifyToken,verifyAdmin ,async (req,res)=>{
 const id=req.params.id;
 const query = {_id: new ObjectId(id)};
 const result = await userCollection.deleteOne(query);
@@ -153,7 +168,7 @@ res.send(result);
 });
 // kwka amra jodi admin korte chie user role ke Ui te 
 // kono particuller field ke amra jodi change krte chie tahole amra patch use kori
-app.patch('/users/admin/:id',async(req, res)=>{
+app.patch('/users/admin/:id',verifyToken,verifyAdmin,async(req, res)=>{
   const id= req.params.id;
   const filter= { _id: new ObjectId(id)};
   const updateDoc = {
