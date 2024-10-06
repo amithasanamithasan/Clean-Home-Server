@@ -1,4 +1,6 @@
-const express = require('express');
+
+const express = require('express')
+const SSLCommerzPayment = require('sslcommerz-lts')
 const cors = require('cors');
 const app = express();
 const jwt = require('jsonwebtoken');
@@ -21,6 +23,11 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+const store_id = process.env.STORE_ID;
+const store_passwd = process.env.STORE_PASS;
+const is_live = false //true for live, false for sandbox
+
+
 
 async function run() {
   try {
@@ -30,6 +37,9 @@ async function run() {
     const serviceCollection= client.db("HomeCleanDb").collection("service");
     const ratingCollection= client.db("HomeCleanDb").collection("rating");
     const cartCollection= client.db("HomeCleanDb").collection("carts");
+    const orderCollection= client.db("HomeCleanDb").collection("order");
+    const paymentCollection= client.db("HomeCleanDb").collection("payment");
+
 // services for get all database 
     app.get("/service", async(req,res)=>{
         const result = await serviceCollection.find().toArray();
@@ -69,6 +79,101 @@ app.delete('/carts/:id',async(req,res)=>{
   res.send(result);
 
 });
+
+// Order payment
+app.post("/order", async (req, res) => {
+  try {
+    const trans_id = new ObjectId().toString(); // Unique transaction ID
+
+    const order = req.body[0]; // Since you're sending an array of cart items, get the first item
+
+    const product = await cartCollection.findOne({ _id: new ObjectId(order.productId) });
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    // Prepare data for SSLCommerz
+    const data = {
+      total_amount: product?.price || 100,
+      currency: 'BDT',
+      tran_id: trans_id,
+      success_url: `http://localhost:5000/payment/success/${trans_id}`,
+      fail_url: 'http://localhost:3030/fail',
+      cancel_url: 'http://localhost:3030/cancel',
+      ipn_url: 'http://localhost:3030/ipn',
+      shipping_method: 'Courier',
+      product_name: product?.title || 'Unknown product',
+      product_category: 'Electronic',
+      product_profile: 'general',
+      cus_name: order.title,
+      cus_email: 'customer@example.com',
+      cus_add1: 'Dhaka',
+      cus_add2: 'Dhaka',
+      cus_city: 'Dhaka',
+      cus_state: 'Dhaka',
+      cus_postcode: '1000',
+      cus_country: 'Bangladesh',
+      cus_phone: '01711111111',
+      cus_fax: '01711111111',
+      ship_name: 'Customer Name',
+      ship_add1: 'Dhaka',
+      ship_add2: 'Dhaka',
+      ship_city: 'Dhaka',
+      ship_state: 'Dhaka',
+      ship_postcode: 1000,
+      ship_country: 'Bangladesh',
+    };
+
+    const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
+
+    sslcz.init(data).then(apiResponse => {
+      const GatewayPageURL = apiResponse.GatewayPageURL;
+      if (GatewayPageURL) {
+        res.json({ url: GatewayPageURL }); // Send the URL back to the client
+
+        const finalorder= {
+          product,paidStatus:false,
+          tranjectionId:trans_id,
+
+        };
+        const result = orderCollection.insertOne(finalorder);
+      } else {
+        res.status(500).json({ error: "Failed to initiate payment" });
+      }
+    }).catch(error => {
+      console.error('SSLCommerz init error:', error);
+      res.status(500).json({ error: "Payment initiation error" });
+    });
+
+  } catch (error) {
+    console.error('Order error:', error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// success payment 
+
+app.post ("/payment/success/:tranId",async(req,res)=>{
+  console.log(req.params.tranId);
+  const result= await orderCollection.updateMany(
+    {tranjectionId:req.params.tranId },
+    {
+    $set:{
+      paidStatus:true,
+    },
+  }
+  
+);
+console.log(result);
+if(result.modifiedCount > 0 ) {
+  res.redirect(`http://localhost:5173/payment/success/${req.params.tranId}`
+  );
+}
+
+}); 
+
+
 // users register created database
 app.post('/users',async (req,res)=>{
   const user=req.body;
@@ -180,6 +285,8 @@ app.patch('/users/admin/:id',verifyToken,verifyAdmin,async(req, res)=>{
   res.send(result);
 
 });
+
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
