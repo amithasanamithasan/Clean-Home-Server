@@ -1,6 +1,6 @@
 
-const express = require('express')
-const SSLCommerzPayment = require('sslcommerz-lts')
+const express = require('express');
+const SSLCommerzPayment = require('sslcommerz-lts');
 const cors = require('cors');
 const app = express();
 const jwt = require('jsonwebtoken');
@@ -46,6 +46,14 @@ async function run() {
         res.send(result);
 
     });
+// ServicesAdditemsAdmin Post services
+app.post('/service', verifyToken, verifyAdmin, async(req,res)=>{
+  const item = req.body;
+  const result=await serviceCollection.insertOne(item);
+  res.send(result);
+})
+
+
     // rating get all client for database
     app.get("/rating", async(req,res)=>{
 
@@ -200,7 +208,7 @@ app.post('/users',async (req,res)=>{
   // middelwares verify token 
     // mideelwares jodi banietachie tahole 3ta pramiters thake
     const verifyToken  = (req,res,next) =>{
-      console.log('inside veryfey token',req.headers.authorization);
+      // console.log('inside veryfey token',req.headers.authorization);
     // user jodi access token na thake tahole take same agite dibo na
       if(!req.headers.authorization){
  return res.status(401).send({message:'unauthorized  access'});
@@ -256,7 +264,7 @@ const query ={email: email};
 const user =await userCollection.findOne(query);
 let admin =false;
 if(user){
-  admin =user.role === 'admin';
+  admin =user?.role === 'admin';
 }
 res.send({admin});
 
