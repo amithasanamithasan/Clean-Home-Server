@@ -118,14 +118,34 @@ app.delete('/service/:id' ,verifyToken, verifyAdmin,async(req,res)=>{
   const result = await serviceCollection.deleteOne(query);
   res.send(result);
 });
+
 // Admin Update items
-app.get('/service/:id' ,verifyToken, verifyAdmin,async(req,res)=>{
+app.get('/service/:id',async(req,res)=>{
   const id= req.params.id;
   const query= {_id: new ObjectId(id)}
   const result = await serviceCollection.findOne(query);
   res.send(result);
 });
+// body thake request ta asbe  update item show the adminupdate
+app.patch('/service/:id' ,async(req,res)=>{
+  const item= req.body;
+  const id= req.params.id;
+  const filter= {_id: new ObjectId(id)};
+ 
+  const updateDoc = {
+    $set: {
+     name:item.name,
+     category:item.category,
+     title:item.title,
+     price:item.price,
+     service:item.service,
+     image:item.image,
 
+    },
+  };
+  const result = await serviceCollection.updateOne(filter ,updateDoc);
+  res.send(result);
+});
     // rating get all client for database
     app.get("/rating", async(req,res)=>{
       const result =await ratingCollection.find().toArray();
