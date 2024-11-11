@@ -1,5 +1,6 @@
 
 const express = require('express');
+
 const SSLCommerzPayment = require('sslcommerz-lts');
 const cors = require('cors');
 const app = express();
@@ -40,6 +41,64 @@ async function run() {
     const orderCollection= client.db("HomeCleanDb").collection("order");
     const paymentCollection= client.db("HomeCleanDb").collection("payment");
 
+
+ // jwt web token access  related API
+    // token ta kotha thika call hobe ta bujte hobe tr mane 
+    // user ji jagie login, signin, social login, takbe sikhane call korbo 
+    app.post('/jwt', async(req,res)=>{
+      const user=req.body;
+      const token=jwt.sign(user,process.env.SECRET_KEY,{
+        expiresIn: '1h'});
+        res.send({token});
+    })
+
+
+  // middelwares verify token 
+    // mideelwares jodi banietachie tahole 3ta pramiters thake
+    const verifyToken  = (req,res,next) =>{
+      // console.log('inside veryfey token',req.headers.authorization);
+    // user jodi access token na thake tahole take same agite dibo na
+      if(!req.headers.authorization){
+ return res.status(401).send({message:'unauthorized  access'});
+      }
+      const token=req.headers.authorization.split(' ')[1];
+      // console.log('1 index token:',token);
+      jwt.verify(token, process.env.SECRET_KEY, (err, decoded)=> {
+        // console.log(decoded.foo) 
+        if(err){
+          return res.status(401).send({message:'unauthorized access'})
+
+        }
+        req.decoded=decoded;
+        next();
+      });
+     
+    }
+
+    // use verify admin after verify Token
+const verifyAdmin= async (req,res,next)=>{
+
+  const email=req.decoded.email;
+  const query={email:email};
+  const user= await userCollection.findOne(query);
+  const isAdmin = user?.role === 'admin';
+  
+  if(!isAdmin){
+    return res.status(403).send({message:'forbidden access'});
+
+  }
+  next();
+
+}
+
+
+
+
+
+
+
+
+
 // services for get all database 
     app.get("/service", async(req,res)=>{
         const result = await serviceCollection.find().toArray();
@@ -51,15 +110,19 @@ app.post('/service', verifyToken, verifyAdmin, async(req,res)=>{
   const item = req.body;
   const result=await serviceCollection.insertOne(item);
   res.send(result);
-})
-
+});
+// AdminmanageItems deleted 
+app.delete('/service/:id' ,verifyToken, verifyAdmin,async(req,res)=>{
+  const id= req.params.id;
+  const query= {_id: new ObjectId(id)}
+  const result = await serviceCollection.deleteOne(query);
+  res.send(result);
+});
 
     // rating get all client for database
     app.get("/rating", async(req,res)=>{
-
       const result =await ratingCollection.find().toArray();
       res.send(result);
-
     });
   
   
@@ -194,54 +257,7 @@ app.post('/users',async (req,res)=>{
   res.send(result);
 });
 
-  // jwt web token access  related API
-    // token ta kotha thika call hobe ta bujte hobe tr mane 
-    // user ji jagie login, signin, social login, takbe sikhane call korbo 
-    app.post('/jwt', async(req,res)=>{
-      const user=req.body;
-      const token=jwt.sign(user,process.env.SECRET_KEY,{
-        expiresIn: '1h'});
-        res.send({token});
-    })
-
-
-  // middelwares verify token 
-    // mideelwares jodi banietachie tahole 3ta pramiters thake
-    const verifyToken  = (req,res,next) =>{
-      // console.log('inside veryfey token',req.headers.authorization);
-    // user jodi access token na thake tahole take same agite dibo na
-      if(!req.headers.authorization){
- return res.status(401).send({message:'unauthorized  access'});
-      }
-      const token=req.headers.authorization.split(' ')[1];
-      // console.log('1 index token:',token);
-      jwt.verify(token, process.env.SECRET_KEY, (err, decoded)=> {
-        // console.log(decoded.foo) 
-        if(err){
-          return res.status(401).send({message:'unauthorized access'})
-
-        }
-        req.decoded=decoded;
-        next();
-      });
-     
-    }
-
-    // use verify admin after verify Token
-const verifyAdmin= async (req,res,next)=>{
-
-  const email=req.decoded.email;
-  const query={email:email};
-  const user= await userCollection.findOne(query);
-  const isAdmin = user?.role === 'admin';
-  
-  if(!isAdmin){
-    return res.status(403).send({message:'forbidden access'});
-
-  }
-  next();
-
-}
+ 
 
 // Admin dashboard  signin all users show in the table 
 app.get('/users', verifyToken, verifyAdmin,async (req,res)=>{
