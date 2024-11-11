@@ -118,6 +118,13 @@ app.delete('/service/:id' ,verifyToken, verifyAdmin,async(req,res)=>{
   const result = await serviceCollection.deleteOne(query);
   res.send(result);
 });
+// Admin Update items
+app.get('/service/:id' ,verifyToken, verifyAdmin,async(req,res)=>{
+  const id= req.params.id;
+  const query= {_id: new ObjectId(id)}
+  const result = await serviceCollection.findOne(query);
+  res.send(result);
+});
 
     // rating get all client for database
     app.get("/rating", async(req,res)=>{
