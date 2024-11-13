@@ -270,7 +270,62 @@ if(result.modifiedCount > 0 ) {
 }
 
 }); 
+// using aggregate Pipeline
+app.get('/order-stats', verifyToken,verifyAdmin, async (req, res) => {
+  try {
+    const result = await orderCollection.aggregate([
+      {
+        $set: {
+          'product._id': { $toObjectId: '$product._id' } // Cast to ObjectId if stored as a string
+        }
+      },
+      {
+        $lookup: {
+          from: 'service', // Ensure this matches your service collection name
+          localField: 'product._id', // Field in orderCollection
+          foreignField: '_id', // Field in service collection
+          as: 'productDetails' // Populates with matching products
+        }
+      },
+      {
+        $unwind: { 
+          path: '$productDetails', // Unwind the productDetails array to access its fields
+          preserveNullAndEmptyArrays: true // Preserve the order if no matches found
+        }
+      },
 
+      {
+        $group: {
+          _id: '$product.title', // Group by product title
+          quantity: { $sum: 1 }, // Count the quantity of each product
+          revenue: { $sum: '$product.price' } // Calculate the total revenue (sum of prices)
+        },
+        
+      },
+
+      {
+        $project:{_id:0,
+          category:'$_id',
+          quantity:'$quantity',
+          revenue:'$revenue'
+        }
+      }
+    ]).toArray();
+    
+    res.send(result);
+  } catch (error) {
+    console.error('Aggregation Error:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+
+
+app.get("/order", async(req,res)=>{
+  const result = await orderCollection.find().toArray();
+  res.send(result);
+
+});
 
 // users register created database
 app.post('/users',async (req,res)=>{
@@ -312,6 +367,33 @@ if(user){
 res.send({admin});
 
 });
+
+
+app.get('/admin-stats', async (req, res) => {
+  try {
+      // Get basic counts
+      const usersCustomers = await userCollection.estimatedDocumentCount();
+      const ServiceItemProducts = await serviceCollection.estimatedDocumentCount();
+      const order = await orderCollection.estimatedDocumentCount();
+
+      // Get all orders and calculate revenue
+      const orders = await orderCollection.find({ paidStatus: true }).toArray();
+      const revenue = orders.reduce((total, order) => total + (order.product.price || 0), 0);
+
+      res.status(200).json({
+          usersCustomers,
+          ServiceItemProducts,
+          order,
+          revenue
+      });
+
+  } catch (error) {
+      console.error('Error fetching admin stats:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 
 
 
